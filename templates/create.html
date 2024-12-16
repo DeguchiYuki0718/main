@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="/" role="button">戻る</a>
+
+<div class="container">
+  <h2>在庫管理アプリ</h2>
+   <form method="POST">
+
+    <label for="title">商品名を入力:</label>
+    <input type="text" name="title" required>
+  
+    <label for="expiry">期限を選択:</label>
+    <input type="date" name="expiry" required>
+
+    <label for="body">個数を入力:</label>
+    <input type="number" name="body" placeholder="例: 10" required>
+    <input type="submit" value="新規登録" >
+   
+   </form>
+</div>
+
+{% endblock %}

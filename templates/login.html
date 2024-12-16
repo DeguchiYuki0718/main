@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="/" role="button">戻る</a>
+
+
+
+<div class="container">
+  <h2>ログイン</h2>
+   <form method="POST">
+
+    <label for="username">ユーザー名:</label>
+    <input type="text" name="username" >
+  
+    <label for="password">パスワード:</label>
+    <input type="password" name="password" >
+
+    <input type="submit" value="ログイン" >
+    <button data-turbo="false" type="submit">LINE連携</button>
+   </form>
+</div>
+{% endblock %}

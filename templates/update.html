@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block content %}
+<a href="/" role="button">戻る</a>
+
+<div class="container">
+  <h2>編集画面</h2>
+   <form method="POST">
+    <label for="title">商品名を入力:</label>
+    <input type="text" name="title" value={{ post.title }} required>
+  
+    <label for="expiry">期限を選択:</label>
+    <input type="date" name="expiry" value={{ post.expiry }} required>
+
+    <label for="body">個数を入力:</label>
+    <input type="number" name="body" placeholder="例: 10" value={{ post.body }} required>
+    <input type="submit" value="更新" >
+   </form>
+</div>
+</script> 
+{% endblock %}

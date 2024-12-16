@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block content %}
+    
+    <div class="container">
+    <a href="https://lin.ee/sHPYNMA"><img src="https://scdn.line-apps.com/n/line_add_friends/btn/ja.png" alt="友だち追加" height="40" border="0"></a>
+    <h1>在庫管理アプリ</h1>
+    <a href="/create" role="button"><b>登録画面</b></a>
+    
+    </div>
+    
+    
+    <h2>在庫リスト</h2>
+        <table border="2">
+          {% for post in posts %}
+           <tr>
+               <th>商品名</th>
+               <th>追加日時</th>
+               <th>期限</th>
+               <th>現在在庫数</th>
+
+           </tr>
+            <tr>
+              <td>{{ post.title}} </td>
+              <td>{{ post.created_at }}</td>
+              <td>{{ post.expiry }} </td>
+              <td>{{ post.body }}</td>
+              <td> <a href="/{{post.id}}/update" role="button"> 編集 </a></td>
+              <td> <a href="/{{post.id}}/delete" role="button"> 削除 </a></td>
+            </tr>
+          {% endfor %}
+        </table>
+{% endblock %}
