@@ -108,7 +108,7 @@ def handle_message(event):
     if text == "食材登録":
         line_bot_api.reply_message(
             event.reply_token,
-            TextSendMessage(text="食材名を送ってください。例: りんご")        
+            TextSendMessage(text="食材名を入力してください。例: りんご")        
         )
         UserState.set_state(user_id, "waiting_for_item_name")
 
