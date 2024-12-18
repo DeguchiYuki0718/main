@@ -124,7 +124,7 @@ def handle_message(event):
         inventory_items = Inventory.query.filter_by(user_id=user_id).all()
         if inventory_items:
             inventory_list = "\n".join(
-                [f" ○品名:{item.name} (保存場所:{item.storage}, 期限:{item.expiration_date}, 在庫数:{item.quantity})" for item in inventory_items]
+                [f" ○{item.name} (保存場所:{item.storage}, 期限:{item.expiration_date}, 在庫数:{item.quantity})" for item in inventory_items]
             )
             line_bot_api.reply_message(
                 event.reply_token,
@@ -156,7 +156,7 @@ def handle_message(event):
             )
     elif text.startswith("食材削除:"):
         try:
-            item_id = int(text.split(":")[item_name])
+            item_id = int(text.split(":")[1])
             item_to_delete = Inventory.query.filter_by(id=item_id, user_id=user_id).first()
             if item_to_delete:
                 db.session.delete(item_to_delete)
@@ -177,7 +177,7 @@ def handle_message(event):
                 TextSendMessage(text=f"削除中にエラーが発生しました: {e}")
             )
     
-    elif text == "期限間近":
+    elif text == "期限間近の在庫":
             today = datetime.now().date()
             threshold_date = today + timedelta(days=3)
             expiring_items = Inventory.query.filter(
@@ -186,16 +186,16 @@ def handle_message(event):
             ).all()
             if expiring_items:
                 expiring_list = "\n".join(
-                    [f"{item.name} ({item.storage}, {item.expiration_date}, {item.quantity}個)" for item in expiring_items]
+                    [f"○{item.name} (保存場所:{item.storage}, 期限:{item.expiration_date}, 在庫数:{item.quantity})" for item in expiring_items]
                 )
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text=f"期限が3日以内の食材:\n{expiring_list}")
+                    TextSendMessage(text=f"期限が3日以内の在庫:\n{expiring_list}")
                 )
             else:
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text="期限が3日以内の食材はありません。")
+                    TextSendMessage(text="期限が3日以内の在庫はありません。")
                 )
     elif UserState.get_state(user_id) == "waiting_for_item_name":
          UserState.set_data(user_id, "item_name", text)
@@ -237,7 +237,7 @@ def handle_message(event):
             UserState.set_state(user_id, "waiting_for_expiration_date")
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text="期限を入力してください (例: 20240101)")
+                TextSendMessage(text="期限を入力してください (例:20240101)")
             )
         except ValueError:
                 line_bot_api.reply_message(
@@ -264,7 +264,7 @@ def handle_message(event):
             line_bot_api.reply_message(
                 event.reply_token,
                 TextSendMessage(
-                    text=f"品名:{item_name} (保存場所:{storage}, 期限:{expiration_date}, 在庫数:{quantity}) を登録しました！"
+                    text=f"○{item_name} (保存場所:{storage}, 期限:{expiration_date}, 在庫数:{quantity})を登録しました！"
                 )
             )
         except ValueError:
