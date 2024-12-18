@@ -178,7 +178,7 @@ def handle_message(event):
             )
     
     elif text == "期限間近の在庫":
-            today = datetime.now().date()
+            today = datetime.today().date()
             threshold_date = today + timedelta(days=3)
             expiring_items = Inventory.query.filter(
                 Inventory.user_id == user_id,
