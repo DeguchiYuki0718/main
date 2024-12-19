@@ -1,17 +1,15 @@
 from flask import Flask
 from flask import render_template , request, redirect ,abort
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.exc import SQLAlchemyError
 import os
 import pytz
-
 from linebot import ( WebhookHandler, LineBotApi)
 from linebot.exceptions import ( InvalidSignatureError)
-
 from linebot.models import MessageEvent, TextMessage, TextSendMessage, QuickReply, QuickReplyButton,MessageAction
-import threading
 from datetime import datetime, timedelta
-
+from apscheduler.schedulers.background import BackgroundScheduler
+import logging
+from sqlalchemy import Boolean
 
 app = Flask(__name__)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///inventory.db"
@@ -34,13 +32,13 @@ class Inventory(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.String(50), nullable=False)
     name = db.Column(db.String(50), nullable=False)
-    storage = db.Column(db.String(30), nullable=False)
+    storage = db.Column(db.String(50), nullable=False)
     expiration_date = db.Column(db.Date, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)  
+    notified = db.Column(Boolean, default=False)  
 
     def __repr__(self):
         return f"<Inventory {self.name}>"
-
 
 @app.route("/", methods=["GET" , "POST"])
 def index():
@@ -97,13 +95,13 @@ def callback():
         app.logger.info("Invalid signature. Please check your channel access token/channel secret.")
         abort(400)
     return 'OK'
-    
+
 # メッセージイベントの処理
 @handler.add(MessageEvent, message=TextMessage)
 def handle_message(event):
     user_id = event.source.user_id
     text = event.message.text
-    
+
     # コマンド処理
     if text == "食材登録":
         line_bot_api.reply_message(
@@ -128,7 +126,7 @@ def handle_message(event):
             )
             line_bot_api.reply_message(
                 event.reply_token,
-                TextSendMessage(text=f"現在の在庫:\n{inventory_list}")
+                TextSendMessage(text=f"最大12個まで登録可能です。       現在の在庫:\n{inventory_list}")
             )
         else:
             line_bot_api.reply_message(
@@ -176,10 +174,9 @@ def handle_message(event):
                 event.reply_token,
                 TextSendMessage(text=f"削除中にエラーが発生しました: {e}")
             )
-    
     elif text == "期限間近の在庫":
             today = datetime.today().date()
-            threshold_date = today + timedelta(days=3)
+            threshold_date = today + timedelta(days=2)
             expiring_items = Inventory.query.filter(
                 Inventory.user_id == user_id,
                 Inventory.expiration_date <= threshold_date
@@ -190,13 +187,14 @@ def handle_message(event):
                 )
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text=f"期限が3日以内の在庫:\n{expiring_list}")
+                    TextSendMessage(text=f"期限が2日以内の在庫:\n{expiring_list}")
                 )
             else:
                 line_bot_api.reply_message(
                     event.reply_token,
-                    TextSendMessage(text="期限が3日以内の在庫はありません。")
+                    TextSendMessage(text="期限が2日以内の在庫はありません。")
                 )
+
     elif UserState.get_state(user_id) == "waiting_for_item_name":
          UserState.set_data(user_id, "item_name", text)
          UserState.set_state(user_id, "waiting_for_storage_location")
@@ -222,6 +220,7 @@ def handle_message(event):
                 TextSendMessage(text="1, 2, 3 ,4のいずれかを選択してください。")
             )
             return
+        
         UserState.set_data(user_id, "storage", storage_map[text])
         UserState.set_state(user_id, "waiting_for_quantity")
         line_bot_api.reply_message(
@@ -285,6 +284,62 @@ def handle_message(event):
         )            
     pass       
 
+def notify_two_days_before_expiration():
+    with app.app_context():
+        today = datetime.today().date()
+        notification_date = today + timedelta(days=2)  
+
+        users = Inventory.query.with_entities(Inventory.user_id).distinct().all()
+
+        for user in users:
+            user_id = user[0]
+            expiring_items = Inventory.query.filter(
+                Inventory.user_id == user_id,
+                Inventory.expiration_date == notification_date,
+                Inventory.notified == False  
+            ).all()
+
+            if expiring_items:
+                # 通知メッセージ作成
+                expiring_list = "\n".join(
+                    [f"○{item.name} ({item.storage}, {item.expiration_date}, {item.quantity})" for item in expiring_items]
+                )
+                try:
+                    line_bot_api.push_message(user_id, TextSendMessage(text = f"期限が2日以内の食材があります！:\n{expiring_list}"))
+                    logging.info(f"通知を送信: {user_id} に対して {expiring_list}")
+
+                    for item in expiring_items:
+                        item.notified = True
+                    db.session.commit()
+                    logging.info(f"通知フラグを更新しました: {len(expiring_items)} 件")
+
+                except Exception as e:
+                    logging.error(f"通知送信中にエラーが発生しました: {e}")
+                    db.session.rollback()
+
+
+def start_scheduler():
+    scheduler = BackgroundScheduler()
+
+    job_id = 'notify_job'
+    existing_job = scheduler.get_job(job_id)
+
+    if existing_job:
+        logging.info(f"既存のジョブ {job_id} を削除します")
+       
+        scheduler.remove_job(job_id)
+    
+    else:
+        scheduler.add_job(
+                notify_two_days_before_expiration,
+                'interval',
+                minutes=1440,  
+                id=job_id)
+
+    logging.info("スケジューラに通知ジョブを追加")
+    scheduler.start()
+start_scheduler()
+
 #状態管理
 class UserState:
     states = {}
@@ -315,6 +370,5 @@ class UserState:
 
 if __name__ == '__main__' :
    
-    # threading.Thread(target=lambda: app.run(debug=True, host='0.0.0.0' , port = 8080,use_reloader=False)).start()
     app.debug = True
     app.run(host='0.0.0.0' , port = 8080) 
