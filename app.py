@@ -35,7 +35,7 @@ class Inventory(db.Model):
     storage = db.Column(db.String(50), nullable=False)
     expiration_date = db.Column(db.Date, nullable=False)
     quantity = db.Column(db.Integer, nullable=False)  
-    notified = db.Column(Boolean, default=False)  
+    
 
     def __repr__(self):
         return f"<Inventory {self.name}>"
@@ -86,7 +86,7 @@ def delete(id):
 def callback():
     signature = request.headers['X-Line-Signature']
     body = request.get_data(as_text=True)
-    
+
     app.logger.info("Request body: " + body)
 
     try:
@@ -296,7 +296,7 @@ def notify_two_days_before_expiration():
             expiring_items = Inventory.query.filter(
                 Inventory.user_id == user_id,
                 Inventory.expiration_date == notification_date,
-                Inventory.notified == False  
+               
             ).all()
 
             if expiring_items:
